@@ -10,6 +10,10 @@ library(purrr)
 library(broom)
 library(DescTools)
 library(plm)
+library(fixest)
+library(modelsummary)
+library(sjPlot)
+library(kableExtra)
 
 #Import Data
 DATA_RAW <- read_excel("Sample_V2.xlsx")
@@ -34,6 +38,7 @@ attach(DATA_PANEL)
 #Tobin's Q
 DATA_PANEL$MVE <- SharesOutstanding * Price
 DATA_PANEL$TobinQ <- (TotalAssets + DATA_PANEL$MVE - BookEquity) / TotalAssets
+RESULTS_Q <- aggregate(TobinQ ~ Identifier, data = DATA_PANEL, FUN = mean)
 
 #1. Accruals Quality
 DATA_PANEL$WCA <- DeltaCurrentAssets - DeltaCurrentLiabilities - DeltaCash + DeltaShortTermDebt
@@ -131,11 +136,15 @@ DATA_CROSS <- RESULTS_AQ %>%
   left_join(RESULTS_PERS, by = "Identifier") %>%
   left_join(RESULTS_RELEV, by = "Identifier") %>%
   left_join(RESULTS_SMOOTH, by = "Identifier") %>%
-  left_join(RESULTS_TIMEL, by = "Identifier")
+  left_join(RESULTS_TIMEL, by = "Identifier") %>%
+  left_join(RESULTS_Q, by = "Identifier")
+
 DATA_CROSS <- DATA_CROSS %>%
-  select(Identifier, AQ, PERS, PRED, RELEV, SMOOTH, TIMEL, CONSER)
+  select(Identifier, AQ, PERS, PRED, RELEV, SMOOTH, TIMEL, CONSER, TobinQ)
+
 DATA_CROSS <- DATA_CROSS %>%
   na.omit()
+
 DATA_CROSS$AQ <- Winsorize(DATA_CROSS$AQ, 
                            val = quantile(DATA_CROSS$AQ,
                                           probs = c(0.01, 0.99)))
@@ -157,6 +166,9 @@ DATA_CROSS$TIMEL <- Winsorize(DATA_CROSS$TIMEL,
 DATA_CROSS$CONSER <- Winsorize(DATA_CROSS$CONSER, 
                            val = quantile(DATA_CROSS$CONSER,
                                           probs = c(0.01, 0.99)))
+DATA_CROSS$TobinQ <- Winsorize(DATA_CROSS$TobinQ, 
+                               val = quantile(DATA_CROSS$TobinQ,
+                                              probs = c(0.01, 0.99)))
 
 #### Compute EQ ####
 attach(DATA_CROSS)
@@ -172,7 +184,7 @@ DATA_CROSS$EQ <- apply(DATA_CROSS[, 9:15], 1, mean, na.rm = TRUE)
 #### Compute Control Variables ####
 attach(DATA_CLEAN)
 DATA_CLEAN$SIZE <- log(TotalAssets)
-DATA_CLEAN$INVOP <- DeltaRevenue/Revenue
+DATA_CLEAN$INVOP <- DeltaRevenue
 DATA_CLEAN$EXTFIN <- (CAPEX - CFO)/CAPEX
 DATA_CLEAN$CAPEXRATIO <- CAPEX/TotalAssets
 DATA_CLEAN$PPERATIO <- PPE/TotalAssets
@@ -180,12 +192,15 @@ DATA_CLEAN$PPERATIO <- PPE/TotalAssets
 DATA_CONTROL <- DATA_CLEAN %>%
   group_by(Identifier) %>%
   summarize(
-    SIZE = mean(SIZE, na.rm = TRUE),
-    INVOP = mean(INVOP, na.rm = TRUE),
+    SIZE = mean(SIZE),
+    INVOP = mean(INVOP),
     EXTFIN = mean(EXTFIN),
-    CAPEXRATIO = mean(CAPEXRATIO, na.rm = TRUE),
-    PPERATIO = mean(PPERATIO, na.rm = TRUE),
+    CAPEXRATIO = mean(CAPEXRATIO),
+    PPERATIO = mean(PPERATIO),
   )
+
+DATA_CONTROL[is.na(DATA_CONTROL) | DATA_CONTROL == "-Inf" | DATA_CONTROL == "Inf"] = NA
+DATA_CONTROL <- DATA_CONTROL[complete.cases(DATA_CONTROL), ]
 
 DATA_CONTROL$SIZE <- Winsorize(DATA_CONTROL$SIZE, 
                                val = quantile(DATA_CONTROL$SIZE,
@@ -195,8 +210,7 @@ DATA_CONTROL$INVOP <- Winsorize(DATA_CONTROL$INVOP,
                                               probs = c(0.01, 0.99)))
 DATA_CONTROL$EXTFIN <- Winsorize(DATA_CONTROL$EXTFIN, 
                                val = quantile(DATA_CONTROL$EXTFIN,
-                                              probs = c(0.01, 0.99),
-                                              na.rm = TRUE))
+                                              probs = c(0.01, 0.99)))
 DATA_CONTROL$CAPEXRATIO <- Winsorize(DATA_CONTROL$CAPEXRATIO, 
                                val = quantile(DATA_CONTROL$CAPEXRATIO,
                                               probs = c(0.01, 0.99)))
@@ -208,7 +222,12 @@ colnames(DATA_RAW)[1] <- "Identifier"
 DATA_COUNTRIES_INDUSTRY <- DATA_RAW[, c("Identifier", "Country of Incorporation", "TRBC Industry Group Name")]
 DATA_FINAL <- merge(DATA_CROSS, DATA_CONTROL, by = "Identifier")
 DATA_FINAL <- merge(DATA_FINAL, DATA_COUNTRIES_INDUSTRY, by = "Identifier", all.x = TRUE)
+colnames(DATA_FINAL)[23] <- "Country"
+colnames(DATA_FINAL)[24] <- "Industry"
 
 source("Regression Results.R")
+
+
+
 
 
