@@ -24,6 +24,7 @@ DATA_SAMPLE_BY_COUNTRY %>%
   row_spec(0, bold = TRUE, font_size = 14, color = "white", background = "#2E4053") %>%
   row_spec(1:nrow(DATA_SAMPLE_BY_COUNTRY), color = "black", font_size = 12) %>%
   save_kable("Sample Composition by Country.html")
+
 #### Sample Composition by Industry ####
 DATA_SAMPLE_BY_INDUSTRY <- DATA_FINAL %>%
   group_by(Industry) %>%
@@ -50,13 +51,21 @@ DATA_SAMPLE_BY_INDUSTRY %>%
   row_spec(0, bold = TRUE, font_size = 14, color = "white", background = "#2E4053") %>%
   row_spec(1:nrow(DATA_SAMPLE_BY_INDUSTRY), color = "black", font_size = 12) %>%
   save_kable("Sample Composition by Industry.html")
-#### Descriptive Statistics ####
-DATA_DESCRIPTIVES <- DATA_FINAL[c("TobinQ", "EQ", "SIZE", "INVOP", "EXTFIN", "CAPEXRATIO", "PPERATIO")]
+
+#### Descriptive Statistics (only EQ) ####
+DATA_DESCRIPTIVES <- DATA_FINAL[c("TobinQ", "EQ", "SIZE", "INVOP", "EXTFIN", "CAPEX_Ratio", "PPE_Ratio", "Cash_Ratio", "Leverage", "SalesM")]
 stargazer(DATA_DESCRIPTIVES, 
           type = "html", 
-          digits = 3, 
+          digits = 3,
           omit.summary.stat = c("min", "max"),
           summary.stat = c("n", "mean", "sd", "p25", "median", "p75"),
-          summary = TRUE, 
-          out = "Descriptive_Statistics.html")
+          out = "Descriptive_Statistics (only EQ).html")
 
+#### Descriptive Statistics (individual EQ measures) ####
+DATA_DESCRIPTIVES <- DATA_FINAL[c("TobinQ", "EQ", "AQ", "PERS", "PRED", "RELEV", "SMOOTH", "TIMEL", "CONSER","SIZE", "INVOP", "EXTFIN", "CAPEX_Ratio", "PPE_Ratio", "Cash_Ratio", "Leverage", "SalesM")]
+stargazer(DATA_DESCRIPTIVES, 
+          type = "html", 
+          digits = 3,
+          omit.summary.stat = c("min", "max"),
+          summary.stat = c("n", "mean", "sd", "p25", "median", "p75"),
+          out = "Descriptive_Statistics (individual EQ measures).html")
